@@ -1,0 +1,25 @@
+Flow: 13:32
+* create new folder, create empty template.yaml
+
+* open new Code window - open folder, right click on template.yaml > Application Composer
+
+* insert API GW, Lambda, DynamoDB table - make connections
+
+* API GW: name Api to TextApi, Method to PUT, path to text
+
+* show template.yaml in between
+
+* Lambda: add Comprehend policy: - arn:aws:iam::aws:policy/ComprehendReadOnly
+
+* DynamoDB: change Partition Key id to text, Table to TextTable
+
+* Do first sam deploy --guided
+
+* Terminal: # curl command for api gateway put
+
+* suggestion: curl -X PUT -H "Content-Type: application/json" -d '{"key":"value"}' https://api.example.com/path
+* replace URL: 
+
+* BUG: if Lambda details are changed AFTER Lambda code creation, that code will be reset to default!
+	* solution: "Edit > Undo" on handler.py
+* Strange: in template.yaml, for Serverless::Api, path is /text: put, but httpMethod: POST - why not PUT?

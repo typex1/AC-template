@@ -1,0 +1,84 @@
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  TextTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: text
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: text
+          KeyType: HASH
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+    Metadata:
+      SamResourceId: TextTable
+  TextApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub
+        - ${ResourceName} From Stack ${AWS::StackName}
+        - ResourceName: TextApi
+      StageName: Prod
+      DefinitionBody:
+        openapi: '3.0'
+        info: {}
+        paths:
+          /text:
+            put:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PutText.Arn}/invocations
+              responses: {}
+      EndpointConfiguration: REGIONAL
+      TracingEnabled: true
+      Cors:
+        MaxAge: 5
+    Metadata:
+      SamResourceId: TextApi
+  TextTopic:
+    Type: AWS::SNS::Topic
+    Metadata:
+      SamResourceId: TextTopic
+  PutText:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: PutText
+      CodeUri: src/PutText
+      Handler: handler.handler
+      Runtime: python3.8
+      MemorySize: 3008
+      Timeout: 15
+      Tracing: Active
+      Events:
+        TextApiPUTtext:
+          Type: Api
+          Properties:
+            Path: /text
+            Method: PUT
+            RestApiId: !Ref TextApi
+      Environment:
+        Variables:
+          TEXTTABLE_TABLE_NAME: !Ref TextTable
+          TEXTTABLE_TABLE_ARN: !GetAtt TextTable.Arn
+          TEXTTOPIC_TOPIC_NAME: !GetAtt TextTopic.TopicName
+          TEXTTOPIC_TOPIC_ARN: !Ref TextTopic
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TextTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt TextTopic.TopicName
+        - ComprehendBasicAccessPolicy: {}
+    Metadata:
+      SamResourceId: PutText
+  PutTextLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PutText}
+    Metadata:
+      SamResourceId: PutTextLogGroup
